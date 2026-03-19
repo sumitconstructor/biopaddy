@@ -8,13 +8,18 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
-  const { loginAs } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const { login, loginAs } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    loginAs(tab);
-    navigate(tab === 'farmer' ? '/farmer' : tab === 'customer' ? '/customer' : '/admin');
+    setLoading(true);
+    try {
+      await login(tab, email, password || 'password123');
+      navigate(tab === 'farmer' ? '/farmer' : tab === 'customer' ? '/customer' : '/admin');
+    } catch { /* fallback handled inside login */ }
+    finally { setLoading(false); }
   };
 
   const tabs = [
