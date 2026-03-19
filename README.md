@@ -1,16 +1,75 @@
-# React + Vite
+# 🌾 BioPaddy
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Convert agricultural waste into eco-friendly utensils.** BioPaddy connects farmers, businesses, and operations through a unified digital platform.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19, Vite, Tailwind CSS, Recharts, Framer Motion |
+| Backend | Node.js, Express, Sequelize ORM |
+| Database | PostgreSQL |
+| Auth | JWT + bcrypt |
 
-## React Compiler
+## Quick Start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Frontend
+```bash
+npm install
+npm run dev        # → http://localhost:5173
+```
 
-## Expanding the ESLint configuration
+### Backend
+```bash
+cd server
+npm install
+cp .env.example .env   # Edit with your DB credentials
+npm run seed           # Populate database
+npm run dev            # → http://localhost:5000
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Demo Logins (password: `password123`)
+| Role | Login |
+|------|-------|
+| Admin | admin@biopaddy.com |
+| Farmer | +919876543210 |
+| Customer | greenplate@corp.com |
+
+## Project Structure
+
+```
+├── src/                    # React frontend (27 pages)
+│   ├── pages/farmer/       # 7 farmer pages
+│   ├── pages/customer/     # 9 customer pages
+│   ├── pages/admin/        # 11 admin pages
+│   ├── services/           # Axios API layer
+│   └── hooks/              # Custom hooks (useApi)
+├── server/                 # Express backend
+│   ├── src/models/         # 8 Sequelize models
+│   ├── src/routes/         # 7 route files (25+ endpoints)
+│   ├── src/middleware/      # JWT auth
+│   └── src/seeders/        # Demo data
+└── vercel.json             # Frontend deployment
+```
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register/farmer` | Register farmer |
+| POST | `/api/auth/register/customer` | Register customer |
+| POST | `/api/auth/login` | Login (email/phone) |
+| GET | `/api/products` | Product catalog |
+| POST | `/api/bookings` | Book collection slot |
+| POST | `/api/orders` | Place order |
+| GET | `/api/admin/dashboard` | Admin stats |
+
+## Deploy
+
+- **Frontend**: [Vercel](https://vercel.com) — connect this repo
+- **Backend**: [Render](https://render.com) — use `server/render.yaml`
+- **Database**: [Neon](https://neon.tech) — free PostgreSQL
+
+## License
+
+MIT
