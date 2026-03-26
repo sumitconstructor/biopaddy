@@ -1,36 +1,92 @@
+/**
+ * FILE: src/pages/customer/CustomerDashboard.jsx
+ *
+ * Changes from original:
+ *   - Removed mockOrders / mockCertificates / monthlyData imports.
+ *   - Fetches /api/customers/dashboard on mount using customerService.
+ *   - Stats cards and charts driven by real API response.
+ *   - Loading and error states added.
+ */
+
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
 import { useAuth } from '../../context/AuthContext';
-import { mockOrders, mockCertificates, monthlyData } from '../../data/mockData';
+import { customerService } from '../../services/index';
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+function statusBadge(status) {
+  const map = {
+    delivered: 'badge-success', shipped: 'badge-info',
+    manufacturing: 'badge-warning', pending: 'badge-neutral', confirmed: 'badge-warning',
+  };
+  return map[status] || 'badge-neutral';
+}
 
 export default function CustomerDashboard() {
   const { user } = useAuth();
-  const myOrders = mockOrders.filter(o => o.customer_id === 'c1');
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    customerService.getDashboard()
+      .then(res => setData(res.data.data))
+      .catch(err => setError(err.response?.data?.message || 'Could not load dashboard data.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="page-enter flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="text-4xl mb-3 animate-pulse">🏢</div>
+          <p className="text-surface-500">Loading your dashboard…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page-enter flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="text-4xl mb-3">⚠️</div>
+          <p className="text-red-500">{error}</p>
+          <button onClick={() => window.location.reload()} className="btn-primary mt-4">Retry</button>
+        </div>
+      </div>
+    );
+  }
 
   const stats = [
-    { label: 'Active Orders', value: '3', icon: '📦', color: 'bg-blue-50 text-blue-600' },
-    { label: 'Total Spent', value: '₹4,85,000', icon: '💰', color: 'bg-emerald-50 text-emerald-600' },
-    { label: 'Next Delivery', value: 'Mar 20', icon: '🚚', color: 'bg-amber-50 text-amber-600' },
-    { label: 'CO₂ Saved', value: '375 kg', icon: '🌿', color: 'bg-green-50 text-green-600' },
+    { label: 'Active Orders', value: String(data.active_orders || 0), icon: '📦', color: 'bg-blue-50 text-blue-600' },
+    { label: 'Total Spent', value: `₹${(data.total_spent || 0).toLocaleString('en-IN')}`, icon: '💰', color: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Next Delivery', value: formatDate(data.next_delivery_date), icon: '🚚', color: 'bg-amber-50 text-amber-600' },
+    { label: 'CO₂ Saved', value: `${(data.co2_saved_kg || 0).toLocaleString()} kg`, icon: '🌿', color: 'bg-green-50 text-green-600' },
   ];
 
-  const impactData = [
-    { month: 'Oct', co2: 45 }, { month: 'Nov', co2: 120 }, { month: 'Dec', co2: 95 },
-    { month: 'Jan', co2: 65 }, { month: 'Feb', co2: 50 }, { month: 'Mar', co2: 375 },
-  ];
+  const co2Chart = data.co2_chart?.length
+    ? data.co2_chart
+    : [{ month: 'No data', co2: 0 }];
 
   return (
     <div className="page-enter space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-surface-900">
-            Welcome, {user?.company_name || user?.profile_name} 👋
+            Welcome, {data.company_name || user?.profile_name} 👋
           </h1>
           <p className="text-surface-500 mt-1">Your business dashboard at a glance</p>
         </div>
-        <Link to="/customer/products" className="btn-primary">
-          🛒 Browse Products
-        </Link>
+        <Link to="/customer/products" className="btn-primary">🛒 Browse Products</Link>
       </div>
 
       {/* Stats */}
@@ -45,12 +101,12 @@ export default function CustomerDashboard() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Environmental Impact */}
+        {/* CO₂ Chart */}
         <div className="lg:col-span-2 card">
           <h3 className="font-display font-bold text-surface-900 mb-1">Environmental Impact</h3>
           <p className="text-sm text-surface-400 mb-4">CO₂ saved (kg) from your purchases</p>
           <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={impactData}>
+            <AreaChart data={co2Chart}>
               <defs>
                 <linearGradient id="co2Grad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
@@ -60,7 +116,7 @@ export default function CustomerDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94a3b8' }} />
               <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} />
-              <Tooltip formatter={(v) => [`${v} kg`, 'CO₂ Saved']} />
+              <Tooltip formatter={v => [`${v} kg`, 'CO₂ Saved']} />
               <Area type="monotone" dataKey="co2" stroke="#10b981" fill="url(#co2Grad)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
@@ -71,11 +127,10 @@ export default function CustomerDashboard() {
           <h3 className="font-display font-bold mb-4">🌍 Your Impact</h3>
           <div className="space-y-4">
             {[
-              { label: 'Paddy Diverted', value: '250 kg', icon: '🌾' },
-              { label: 'CO₂ Saved', value: '375 kg', icon: '💨' },
-              { label: 'Biodegradable Units', value: '10,000', icon: '♻️' },
-              { label: 'Plastics Saved', value: '~500 kg', icon: '🚫' },
-              { label: 'Certificates', value: '1 issued', icon: '📜' },
+              { label: 'Paddy Diverted', value: `${(data.paddy_diverted_kg || 0).toLocaleString()} kg`, icon: '🌾' },
+              { label: 'CO₂ Saved', value: `${(data.co2_saved_kg || 0).toLocaleString()} kg`, icon: '💨' },
+              { label: 'Active Orders', value: String(data.active_orders || 0), icon: '📦' },
+              { label: 'Total Orders', value: String(data.recent_orders?.length || 0), icon: '🛒' },
             ].map((item, i) => (
               <div key={i} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -98,35 +153,37 @@ export default function CustomerDashboard() {
           <h3 className="font-display font-bold text-surface-900">Recent Orders</h3>
           <Link to="/customer/orders" className="text-sm text-brand-600 font-medium hover:text-brand-700">View All →</Link>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead><tr className="border-b border-surface-100">
-              <th className="table-header">Order ID</th>
-              <th className="table-header">Date</th>
-              <th className="table-header">Items</th>
-              <th className="table-header">Total</th>
-              <th className="table-header">Status</th>
-            </tr></thead>
-            <tbody>
-              {mockOrders.slice(0, 4).map(o => (
-                <tr key={o.order_id} className="table-row">
-                  <td className="table-cell font-mono text-xs">{o.order_id.toUpperCase()}</td>
-                  <td className="table-cell">{o.order_date}</td>
-                  <td className="table-cell">{o.items.length} products</td>
-                  <td className="table-cell font-semibold">₹{o.final_amount.toLocaleString()}</td>
-                  <td className="table-cell">
-                    <span className={`badge ${
-                      o.status === 'delivered' ? 'badge-success' :
-                      o.status === 'shipped' ? 'badge-info' :
-                      o.status === 'manufacturing' ? 'badge-warning' :
-                      'badge-neutral'
-                    }`}>{o.status}</span>
-                  </td>
+
+        {!data.recent_orders?.length ? (
+          <p className="text-surface-400 text-sm py-6 text-center">No orders yet. Browse our products!</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-surface-100">
+                  <th className="table-header">Order ID</th>
+                  <th className="table-header">Date</th>
+                  <th className="table-header">Total</th>
+                  <th className="table-header">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {data.recent_orders.map(o => (
+                  <tr key={o.order_id} className="table-row">
+                    <td className="table-cell font-mono text-xs">{o.order_id.toUpperCase().slice(0, 8)}</td>
+                    <td className="table-cell">{formatDate(o.created_at || o.order_date)}</td>
+                    <td className="table-cell font-semibold">
+                      {o.final_amount ? `₹${o.final_amount.toLocaleString('en-IN')}` : '—'}
+                    </td>
+                    <td className="table-cell">
+                      <span className={`badge ${statusBadge(o.status)}`}>{o.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}
