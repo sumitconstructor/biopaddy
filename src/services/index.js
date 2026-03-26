@@ -1,25 +1,49 @@
+/**
+ * FILE: src/services/index.js
+ *
+ * Changes from original:
+ *   - authService: removed phone/OTP methods, replaced with email-based OTP.
+ *   - Added customerService.getDashboard()
+ *   - All other services unchanged.
+ */
+
 import api from './api';
 
+// ── Auth ─────────────────────────────────────────────────────────────────────
 export const authService = {
-  loginFarmer: (phone_number, password) => api.post('/auth/login', { phone_number, password }),
-  loginCustomer: (email, password) => api.post('/auth/login', { email, password }),
-  loginAdmin: (email, password) => api.post('/auth/login', { email, password }),
+  /** Unified login — works for farmer, customer, admin */
+  login: (email, password) => api.post('/auth/login', { email, password }),
+
+  /** Send OTP to email. purpose: 'verification' | 'login' | 'reset' */
+  sendOtp: (email, purpose = 'verification') =>
+    api.post('/auth/send-otp', { email, purpose }),
+
+  /** Verify the 6-digit OTP */
+  verifyOtp: (email, otp) => api.post('/auth/verify-otp', { email, otp }),
 
   registerFarmer: (data) => api.post('/auth/register/farmer', data),
   registerCustomer: (data) => api.post('/auth/register/customer', data),
 
-  sendOtp: (phone_number) => api.post('/auth/send-otp', { phone_number }),
-  verifyOtp: (phone_number, otp) => api.post('/auth/verify-otp', { phone_number, otp }),
-
   refreshToken: (refreshToken) => api.post('/auth/refresh', { refreshToken }),
+
+  /** Validate current JWT and return full user + profile */
+  me: () => api.get('/auth/me'),
 };
 
+// ── Farmer ───────────────────────────────────────────────────────────────────
 export const farmerService = {
   getProfile: () => api.get('/farmers/profile'),
   updateProfile: (data) => api.put('/farmers/profile', data),
   getDashboard: () => api.get('/farmers/dashboard'),
 };
 
+// ── Customer ─────────────────────────────────────────────────────────────────
+export const customerService = {
+  getProfile: () => api.get('/customers/profile'),
+  getDashboard: () => api.get('/customers/dashboard'),
+};
+
+// ── Bookings ─────────────────────────────────────────────────────────────────
 export const bookingService = {
   create: (data) => api.post('/bookings', data),
   list: (params) => api.get('/bookings', { params }),
@@ -28,6 +52,7 @@ export const bookingService = {
   cancel: (id) => api.delete(`/bookings/${id}`),
 };
 
+// ── Products ─────────────────────────────────────────────────────────────────
 export const productService = {
   list: (params) => api.get('/products', { params }),
   getById: (id) => api.get(`/products/${id}`),
@@ -35,6 +60,7 @@ export const productService = {
   update: (id, data) => api.put(`/products/${id}`, data),
 };
 
+// ── Orders ───────────────────────────────────────────────────────────────────
 export const orderService = {
   create: (data) => api.post('/orders', data),
   list: (params) => api.get('/orders', { params }),
@@ -42,12 +68,14 @@ export const orderService = {
   updateStatus: (id, data) => api.patch(`/orders/${id}`, data),
 };
 
+// ── Certificates ─────────────────────────────────────────────────────────────
 export const certificateService = {
   list: () => api.get('/certificates'),
   create: (order_id) => api.post('/certificates', { order_id }),
   update: (id, data) => api.patch(`/certificates/${id}`, data),
 };
 
+// ── Admin ─────────────────────────────────────────────────────────────────────
 export const adminService = {
   getDashboard: () => api.get('/admin/dashboard'),
   getFarmers: (params) => api.get('/admin/farmers', { params }),
