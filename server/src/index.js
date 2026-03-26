@@ -54,7 +54,7 @@ app.use('/api/certificates', certificateRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err.message);
+  console.error('❌ FULL OTP/SERVER ERROR:', err);
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal Server Error',
