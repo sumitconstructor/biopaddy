@@ -2,8 +2,9 @@
  * FILE: server/src/index.js
  *
  * Changes from original:
- *   - Added customerRoutes on /api/customers
- *   - CORS still reads from FRONTEND_URL env var
+ * - Added customerRoutes on /api/customers
+ * - CORS still reads from FRONTEND_URL env var
+ * - UPDATED: Catch block now prints the FULL error object to find the DB bug
  */
 
 import express from 'express';
@@ -77,7 +78,8 @@ async function start() {
       console.log(`🚀 BioPaddy API running on http://localhost:${PORT}`)
     );
   } catch (error) {
-    console.error('❌ Unable to start server:', error.message);
+    // WE ARE PRINTING THE FULL ERROR OBJECT NOW TO EXPOSE THE BUG
+    console.error('❌ REAL DATABASE ERROR (FULL TEXT):', error); 
     console.log('⚠️  Starting without database connection...');
     app.listen(PORT, () =>
       console.log(`🚀 BioPaddy API running on http://localhost:${PORT} (no DB)`)
