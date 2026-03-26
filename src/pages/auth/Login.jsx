@@ -9,17 +9,28 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(''); // Added to show login errors
+  
   const { login, loginAs } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError(''); // Clear any previous errors before trying again
+
     try {
-      await login(tab, email, password || 'password123');
+      // 1. Send the actual entered password (removed the 'password123' fallback)
+      await login(tab, email, password);
+      
+      // 2. ONLY navigate if the login function above doesn't throw an error
       navigate(tab === 'farmer' ? '/farmer' : tab === 'customer' ? '/customer' : '/admin');
-    } catch { /* fallback handled inside login */ }
-    finally { setLoading(false); }
+    } catch (err) {
+      // 3. If login fails, catch the error and stop the user from navigating
+      setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const tabs = [
@@ -57,6 +68,13 @@ export default function Login() {
             ))}
           </div>
 
+          {/* Show Error Message if login fails */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 text-center">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="input-label">{tab === 'farmer' ? 'Phone Number' : 'Email Address'}</label>
@@ -66,6 +84,7 @@ export default function Login() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder={tab === 'farmer' ? '+91 98765 43210' : 'you@company.com'}
                 className="input-field"
+                required // Added required attribute
               />
             </div>
 
@@ -73,7 +92,7 @@ export default function Login() {
               <div>
                 <label className="input-label">OTP</label>
                 <div className="flex gap-2">
-                  <input type="text" placeholder="Enter OTP" className="input-field flex-1" maxLength={6} />
+                  <input type="text" placeholder="Enter OTP" className="input-field flex-1" maxLength={6} required />
                   <button type="button" className="px-4 py-3 bg-brand-50 text-brand-700 font-medium rounded-xl hover:bg-brand-100 transition-colors text-sm whitespace-nowrap">
                     Send OTP
                   </button>
@@ -89,6 +108,7 @@ export default function Login() {
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
                     className="input-field pr-12"
+                    required // Added required attribute
                   />
                   <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 text-sm">
                     {showPwd ? '🙈' : '👁️'}
@@ -105,8 +125,12 @@ export default function Login() {
               <a href="#" className="text-brand-600 hover:text-brand-700 font-medium">Forgot password?</a>
             </div>
 
-            <button type="submit" className="btn-primary w-full py-3.5">
-              Sign In
+            <button 
+              type="submit" 
+              className="btn-primary w-full py-3.5 flex justify-center items-center"
+              disabled={loading} // Prevent multiple clicks while loading
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
@@ -119,9 +143,9 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Quick demo login */}
+          {/* Quick demo login - NOTE: Remove this section in a real production app! */}
           <div className="mt-4 pt-4 border-t border-surface-100">
-            <p className="text-xs text-surface-400 text-center mb-2">Quick Demo Access</p>
+            <p className="text-xs text-surface-400 text-center mb-2">Quick Demo Access (Dev Only)</p>
             <div className="flex gap-2">
               {tabs.map(t => (
                 <button
