@@ -1,87 +1,88 @@
 /**
- * FILE: src/services/index.js
+ * FILE: server/src/index.js
  *
  * Changes from original:
- *   - authService: removed phone/OTP methods, replaced with email-based OTP.
- *   - Added customerService.getDashboard()
- *   - All other services unchanged.
+ *   - Added customerRoutes on /api/customers
+ *   - CORS still reads from FRONTEND_URL env var
  */
 
-import api from './api';
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+import dotenv from 'dotenv';
+import sequelize from './config/database.js';
 
-// ── Auth ─────────────────────────────────────────────────────────────────────
-export const authService = {
-  /** Unified login — works for farmer, customer, admin */
-  login: (email, password) => api.post('/auth/login', { email, password }),
+// Route imports
+import authRoutes from './routes/auth.routes.js';
+import farmerRoutes from './routes/farmer.routes.js';
+import customerRoutes from './routes/customer.routes.js'; // NEW
+import bookingRoutes from './routes/booking.routes.js';
+import productRoutes from './routes/product.routes.js';
+import orderRoutes from './routes/order.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import certificateRoutes from './routes/certificate.routes.js';
 
-  /** Send OTP to email. purpose: 'verification' | 'login' | 'reset' */
-  sendOtp: (email, purpose = 'verification') =>
-    api.post('/auth/send-otp', { email, purpose }),
+dotenv.config();
 
-  /** Verify the 6-digit OTP */
-  verifyOtp: (email, otp) => api.post('/auth/verify-otp', { email, otp }),
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-  registerFarmer: (data) => api.post('/auth/register/farmer', data),
-  registerCustomer: (data) => api.post('/auth/register/customer', data),
+// Middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true,
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
 
-  refreshToken: (refreshToken) => api.post('/auth/refresh', { refreshToken }),
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'BioPaddy API' });
+});
 
-  /** Validate current JWT and return full user + profile */
-  me: () => api.get('/auth/me'),
-};
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/farmers', farmerRoutes);
+app.use('/api/customers', customerRoutes); // NEW
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/certificates', certificateRoutes);
 
-// ── Farmer ───────────────────────────────────────────────────────────────────
-export const farmerService = {
-  getProfile: () => api.get('/farmers/profile'),
-  updateProfile: (data) => api.put('/farmers/profile', data),
-  getDashboard: () => api.get('/farmers/dashboard'),
-};
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Error:', err.message);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+  });
+});
 
-// ── Customer ─────────────────────────────────────────────────────────────────
-export const customerService = {
-  getProfile: () => api.get('/customers/profile'),
-  getDashboard: () => api.get('/customers/dashboard'),
-};
+// 404
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
+});
 
-// ── Bookings ─────────────────────────────────────────────────────────────────
-export const bookingService = {
-  create: (data) => api.post('/bookings', data),
-  list: (params) => api.get('/bookings', { params }),
-  getById: (id) => api.get(`/bookings/${id}`),
-  update: (id, data) => api.patch(`/bookings/${id}`, data),
-  cancel: (id) => api.delete(`/bookings/${id}`),
-};
+// Start
+async function start() {
+  try {
+    await sequelize.authenticate();
+    console.log('✅ Database connected');
+    await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
+    console.log('✅ Models synced');
+    app.listen(PORT, () =>
+      console.log(`🚀 BioPaddy API running on http://localhost:${PORT}`)
+    );
+  } catch (error) {
+    console.error('❌ Unable to start server:', error.message);
+    console.log('⚠️  Starting without database connection...');
+    app.listen(PORT, () =>
+      console.log(`🚀 BioPaddy API running on http://localhost:${PORT} (no DB)`)
+    );
+  }
+}
 
-// ── Products ─────────────────────────────────────────────────────────────────
-export const productService = {
-  list: (params) => api.get('/products', { params }),
-  getById: (id) => api.get(`/products/${id}`),
-  create: (data) => api.post('/products', data),
-  update: (id, data) => api.put(`/products/${id}`, data),
-};
-
-// ── Orders ───────────────────────────────────────────────────────────────────
-export const orderService = {
-  create: (data) => api.post('/orders', data),
-  list: (params) => api.get('/orders', { params }),
-  getById: (id) => api.get(`/orders/${id}`),
-  updateStatus: (id, data) => api.patch(`/orders/${id}`, data),
-};
-
-// ── Certificates ─────────────────────────────────────────────────────────────
-export const certificateService = {
-  list: () => api.get('/certificates'),
-  create: (order_id) => api.post('/certificates', { order_id }),
-  update: (id, data) => api.patch(`/certificates/${id}`, data),
-};
-
-// ── Admin ─────────────────────────────────────────────────────────────────────
-export const adminService = {
-  getDashboard: () => api.get('/admin/dashboard'),
-  getFarmers: (params) => api.get('/admin/farmers', { params }),
-  verifyFarmer: (id) => api.patch(`/admin/farmers/${id}/verify`),
-  rejectFarmer: (id) => api.patch(`/admin/farmers/${id}/reject`),
-  getFinance: () => api.get('/admin/finance'),
-  processPayout: (bookingId) => api.post(`/admin/payouts/${bookingId}`),
-  getInventory: () => api.get('/admin/inventory'),
-};
+start();
